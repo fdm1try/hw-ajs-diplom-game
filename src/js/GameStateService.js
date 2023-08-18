@@ -14,4 +14,16 @@ export default class GameStateService {
       throw new Error('Invalid state');
     }
   }
+
+  saveByLabel(label, data) {
+    this.storage.setItem(label, JSON.stringify(data));
+  }
+
+  loadByLabel(label) {
+    try {
+      return JSON.parse(this.storage.getItem(label));
+    } catch (e) {
+      throw new Error('Invalid state');
+    }
+  }
 }

@@ -29,7 +29,54 @@ body {
 
 .controls {
   text-align: center;
-  margin: 50px 0;
+  margin: 50px 0 0 0;
+}
+
+.score-board {
+  font-family:Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 20px 0 10px 0;
+  text-align: center;
+  color: white;
+  display: flex;
+  gap: 0;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.score-current, .score-high {
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 0;
+  
+}
+
+.score-current span, .score-high span {
+  background: rgba(0, 0, 0, 0.4);
+  min-width: 100px;
+  text-align: right;
+  color: white;
+  padding: 7px 10px;
+  margin: 0 15px 0 0;
+}
+
+.score-current span {
+  margin: 0 0 0 15px;
+  text-align: left;
+}
+
+.score-high {
+  background-color: rgb(91, 26, 26);
+  border-radius: 0 7px 7px 0;
+}
+
+.score-current {
+  color: black;
+  padding: 0 0 0 10px;
+  background-color: #7eb181;
+  border-radius: 7px 0 0 7px;
 }
 
 .board-container {
@@ -251,4 +298,62 @@ body {
     top: -20px;
     font-size: 1.5rem;
   }
+}
+
+.modal-container {
+  font-family: Tahoma, sans-serif;
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+}
+
+.modal-error, .modal-info {
+  width: 400px;
+  border-radius: 10px;
+  background-color: white;
+}
+
+.modal-error .modal-title {
+  background-color:rgb(91, 26, 26);
+}
+
+.modal-info .modal-title {
+  background-color: rgb(174, 174, 60);
+}
+
+.modal-title {
+  border-radius: 5px 5px 0 0;
+  color: white;
+  text-align: left;
+  font-size: 20px;
+  text-transform: uppercase;
+  margin: 0;
+  padding: 20px 20px 10px 20px;
+  border-bottom: 3px solid black;
+  box-shadow: 0 2px 5px black;
+}
+
+.modal-content {
+  text-align: left;
+  font-family: Verdana, sans-serif;
+  font-size: 16px;
+  padding: 10px 20px 0 20px;
+  color: black;
+}
+
+.modal-confirm {
+  margin: 15px;
+  padding: 7px 20px;
+}
+
+.modal-confirm:hover {
+  cursor: pointer;
 }

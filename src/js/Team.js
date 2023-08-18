@@ -1,3 +1,4 @@
+import Character from './Character';
 /**
  * Класс, представляющий персонажей команды
  *
@@ -13,4 +14,21 @@
  * */
 export default class Team {
   // TODO: write your logic here
+  #members;
+
+  constructor() {
+    this.#members = [];
+  }
+
+  add(character) {
+    if (character instanceof Character) {
+      this.#members.push(character);
+      return true;
+    }
+    return false;
+  }
+
+  get characters() {
+    return [...this.#members];
+  }
 }

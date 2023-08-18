@@ -23,8 +23,19 @@
  * ```
  * */
 export function calcTileType(index, boardSize) {
-  // TODO: ваш код будет тут
-  return 'center';
+  const positions = [];
+  if (index < boardSize) {
+    positions.push('top');
+  } else if (index > (boardSize * (boardSize - 1)) - 1) {
+    positions.push('bottom');
+  }
+
+  if (index % boardSize === 0) {
+    positions.push('left');
+  } else if (index % boardSize === boardSize - 1) {
+    positions.push('right');
+  }
+  return positions.length ? positions.join('-') : 'center';
 }
 
 export function calcHealthLevel(health) {

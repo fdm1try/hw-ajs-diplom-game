@@ -35,6 +35,16 @@ export default class GamePlay {
         <button data-id="action-save" class="btn">Save Game</button>
         <button data-id="action-load" class="btn">Load Game</button>
       </div>
+      <div class="score-board">
+        <div class="score-current">
+          score
+          <span data-id="score-current">0</span>
+        </div>
+        <div class="score-high">
+          <span data-id="score-high">0</span>
+          highscore
+        </div>
+      </div>
       <div class="board-container">
         <div data-id="board" class="board"></div>
       </div>
@@ -43,10 +53,12 @@ export default class GamePlay {
     this.newGameEl = this.container.querySelector('[data-id=action-restart]');
     this.saveGameEl = this.container.querySelector('[data-id=action-save]');
     this.loadGameEl = this.container.querySelector('[data-id=action-load]');
+    this.scoreEl = this.container.querySelector('[data-id=score-current]');
+    this.highScoreEl = this.container.querySelector('[data-id=score-high]');
 
-    this.newGameEl.addEventListener('click', event => this.onNewGameClick(event));
-    this.saveGameEl.addEventListener('click', event => this.onSaveGameClick(event));
-    this.loadGameEl.addEventListener('click', event => this.onLoadGameClick(event));
+    this.newGameEl.addEventListener('click', (event) => this.onNewGameClick(event));
+    this.saveGameEl.addEventListener('click', (event) => this.onSaveGameClick(event));
+    this.loadGameEl.addEventListener('click', (event) => this.onLoadGameClick(event));
 
     this.boardEl = this.container.querySelector('[data-id=board]');
 
@@ -54,13 +66,18 @@ export default class GamePlay {
     for (let i = 0; i < this.boardSize ** 2; i += 1) {
       const cellEl = document.createElement('div');
       cellEl.classList.add('cell', 'map-tile', `map-tile-${calcTileType(i, this.boardSize)}`);
-      cellEl.addEventListener('mouseenter', event => this.onCellEnter(event));
-      cellEl.addEventListener('mouseleave', event => this.onCellLeave(event));
-      cellEl.addEventListener('click', event => this.onCellClick(event));
+      cellEl.addEventListener('mouseenter', (event) => this.onCellEnter(event));
+      cellEl.addEventListener('mouseleave', (event) => this.onCellLeave(event));
+      cellEl.addEventListener('click', (event) => this.onCellClick(event));
       this.boardEl.appendChild(cellEl);
     }
 
     this.cells = Array.from(this.boardEl.children);
+  }
+
+  redrawScoreBoard(score, highScore) {
+    this.scoreEl.innerHTML = score;
+    this.highScoreEl.innerHTML = highScore;
   }
 
   /**
@@ -148,41 +165,63 @@ export default class GamePlay {
   onCellEnter(event) {
     event.preventDefault();
     const index = this.cells.indexOf(event.currentTarget);
-    this.cellEnterListeners.forEach(o => o.call(null, index));
+    this.cellEnterListeners.forEach((o) => o.call(null, index));
   }
 
   onCellLeave(event) {
     event.preventDefault();
     const index = this.cells.indexOf(event.currentTarget);
-    this.cellLeaveListeners.forEach(o => o.call(null, index));
+    this.cellLeaveListeners.forEach((o) => o.call(null, index));
   }
 
   onCellClick(event) {
     const index = this.cells.indexOf(event.currentTarget);
-    this.cellClickListeners.forEach(o => o.call(null, index));
+    this.cellClickListeners.forEach((o) => o.call(null, index));
   }
 
   onNewGameClick(event) {
     event.preventDefault();
-    this.newGameListeners.forEach(o => o.call(null));
+    this.newGameListeners.forEach((o) => o.call(null));
   }
 
   onSaveGameClick(event) {
     event.preventDefault();
-    this.saveGameListeners.forEach(o => o.call(null));
+    this.saveGameListeners.forEach((o) => o.call(null));
   }
 
   onLoadGameClick(event) {
     event.preventDefault();
-    this.loadGameListeners.forEach(o => o.call(null));
+    this.loadGameListeners.forEach((o) => o.call(null));
+  }
+
+  static showModal(text, type = 'info') {
+    const modalType = ['info', 'error'].includes(type) ? type : 'info';
+    const modalEl = document.createElement('div');
+    GamePlay.modalEl = modalEl;
+    modalEl.classList.add('modal-container');
+    modalEl.innerHTML = `
+      <div class='modal-${modalType}'>
+        <h2 class='modal-title'>${modalType}</h2>
+        <div class='modal-content'>${text}</div>
+        <button class='modal-confirm'>OK</button>
+      </div>
+    `;
+    const buttonEl = modalEl.querySelector('.modal-confirm');
+    buttonEl.addEventListener('click', GamePlay.removeModal);
+    document.body.appendChild(modalEl);
+  }
+
+  static removeModal() {
+    document.body.removeChild(GamePlay.modalEl);
+    GamePlay.modalEl = undefined;
   }
 
   static showError(message) {
-    alert(message);
+    GamePlay.showModal(message, 'error');
   }
 
   static showMessage(message) {
-    alert(message);
+    GamePlay.showModal(message, 'info');
   }
 
   selectCell(index, color = 'yellow') {
@@ -193,7 +232,7 @@ export default class GamePlay {
   deselectCell(index) {
     const cell = this.cells[index];
     cell.classList.remove(...Array.from(cell.classList)
-      .filter(o => o.startsWith('selected')));
+      .filter((o) => o.startsWith('selected')));
   }
 
   showCellTooltip(message, index) {
@@ -203,7 +242,7 @@ export default class GamePlay {
   hideCellTooltip(index) {
     this.cells[index].title = '';
   }
-  
+
   showDamage(index, damage) {
     return new Promise((resolve) => {
       const cell = this.cells[index];
