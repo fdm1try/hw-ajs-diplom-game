@@ -2,6 +2,8 @@
 
 ###### tags: `netology` `advanced js`
 
+[![Build status](https://ci.appveyor.com/api/projects/status/d6nlegnmsvx9df55?svg=true)](https://ci.appveyor.com/project/fdm1try/hw-ajs-diplom-game)
+
 ## Предыстория
 
 Вы неплохо овладели не только продвинутыми возможностями JS, но и инфраструктурными инструментами. Вам поручили первый проект: разработать небольшую пошаговую игру.
