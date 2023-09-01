@@ -6,6 +6,7 @@
   "scripts": {
     "start": "webpack-dev-server --mode development",
     "build": "webpack --mode production",
+    "deploy": "push-dir --force --cleanup --dir dist --branch=gh-pages",
     "lint": "eslint .",
     "test": "jest",
     "coverage": "jest --coverage",
@@ -43,7 +44,9 @@
     "mini-css-extract-plugin": "^2.7.6",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1"
+    "webpack-dev-server": "^4.15.1",
+    "push-dir": "^0.4.1",
+    "gh-pages": "^6.0.0"
   },
   "dependencies": {
     "core-js": "^3.32.0"
