@@ -1,3 +1,21 @@
+const moveDistance = {
+  swordsman: 1,
+  undead: 1,
+  bowman: 2,
+  vampire: 2,
+  magician: 4,
+  daemon: 4,
+};
+
+const attackDistance = {
+  swordsman: 1,
+  undead: 1,
+  bowman: 2,
+  vampire: 2,
+  magician: 4,
+  daemon: 4,
+};
+
 /**
  * Базовый класс, от которого наследуются классы персонажей
  * @property level - уровень персонажа, от 1 до 4
@@ -44,5 +62,13 @@ export default class Character {
     if (this.health > 100) {
       this.health = 100;
     }
+  }
+
+  get moveDistance() {
+    return moveDistance[this.type];
+  }
+
+  get attackDistance() {
+    return attackDistance[this.type];
   }
 }

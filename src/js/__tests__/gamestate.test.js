@@ -4,6 +4,7 @@ const savedStateSample = {
   score: 140,
   level: 1,
   isPlayerMove: true,
+  isGameOver: false,
   playerTeam: [{
     type: 'swordsman',
     level: 2,
@@ -64,6 +65,7 @@ test('The reset() function resets points, level, and teams', () => {
   expect(gameState.json).toEqual({
     score: 0,
     level: 0,
+    isGameOver: false,
     isPlayerMove: true,
     playerTeam: [],
     enemyTeam: [],
@@ -90,18 +92,21 @@ test(
 test(
   'Function allCharacters() returns a list of characters of both teams, the positions property - the positions of the characters of both teams',
   () => {
-    const all = gameState.allCharacters;
-    const positions = all.map((item) => item.position);
+    const positionedCharacters = gameState.getAllPositionedCharacters();
+    const characters = positionedCharacters.map((item) => item.character);
+    const positions = positionedCharacters.map((item) => item.position);
     expect(gameState.positions).toEqual(positions);
-    expect(all).toEqual([...gameState.playerTeam, ...gameState.enemyTeam]);
+    const expected = [...gameState.playerTeam.characters, ...gameState.enemyTeam.characters];
+    expect(characters).toEqual(expected);
   },
 );
 
 test('After removing the position, the character is removed from his team', () => {
-  const entity = gameState.allCharacters[0];
-  gameState.removePosition(entity.position);
-  const result = gameState.allCharacters.find((item) => item.character === entity.character);
-  expect(result).toBeUndefined();
+  const [character] = gameState.playerTeam.characters;
+  const position = gameState.getPosition(character);
+  gameState.removePosition(position);
+  const result = gameState.findPCByPosition(position);
+  expect(result).toBeNull();
 });
 
 test(
@@ -111,3 +116,16 @@ test(
     expect(parseState).toThrow();
   },
 );
+
+test(
+  'An error is thrown when trying to change the state of the command when it is not empty',
+  () => {
+    const check = () => gameState.setTeamState(gameState.playerTeam, {});
+    expect(check).toThrow();
+  },
+);
+
+test('The removePosition() function return false if it empty', () => {
+  const result = gameState.removePosition(5);
+  expect(result).toBe(false);
+});

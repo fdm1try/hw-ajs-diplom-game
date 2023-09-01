@@ -42,8 +42,9 @@ export default class AI {
     }
     const threats = [];
     for (const attacker of enemyTeam) {
+      const distance = attacker.character.attackDistance;
       for (const defender of team) {
-        if (AI.canAttack(attacker.position, defender.position, attacker.attackDistance, size)) {
+        if (AI.canAttack(attacker.position, defender.position, distance, size)) {
           threats.push({ attacker, target: defender });
         }
       }
@@ -57,7 +58,7 @@ export default class AI {
       throw new Error('Unknown board size!');
     }
     const variants = [];
-    const distance = positionedCharacter.moveDistance;
+    const distance = positionedCharacter.character.moveDistance;
     for (let i = distance * -1; i <= distance; i += 1) {
       for (let j = distance * -1; j <= distance; j += 1) {
         if (i === 0 || j === 0 || Math.abs(i) === Math.abs(j)) {

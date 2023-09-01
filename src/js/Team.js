@@ -28,7 +28,19 @@ export default class Team {
     return false;
   }
 
+  remove(character) {
+    this.#members = this.#members.filter((item) => item !== character);
+  }
+
   get characters() {
     return [...this.#members];
+  }
+
+  has(character) {
+    return this.#members.includes(character);
+  }
+
+  get size() {
+    return this.#members.length;
   }
 }

@@ -1,22 +1,29 @@
 import { charactersMap } from './generators';
 import PositionedCharacter from './PositionedCharacter';
+import Team from './Team';
 
 export default class GameState {
   #score;
 
+  #positions;
+
   constructor() {
     this.isPlayerMove = true;
-    this.playerTeam = [];
-    this.enemyTeam = [];
+    this.playerTeam = new Team();
+    this.enemyTeam = new Team();
+    this.#positions = new Map();
     this.level = 0;
     this.#score = 0;
     this.highScore = 0;
+    this.isGameOver = false;
   }
 
   reset() {
     this.isPlayerMove = true;
-    this.playerTeam = [];
-    this.enemyTeam = [];
+    this.playerTeam = new Team();
+    this.enemyTeam = new Team();
+    this.#positions = new Map();
+    this.isGameOver = false;
     this.level = 0;
     this.#score = 0;
   }
@@ -32,36 +39,71 @@ export default class GameState {
     }
   }
 
-  get allCharacters() {
-    return [...this.playerTeam, ...this.enemyTeam];
+  getAllPositionedCharacters() {
+    return [...this.playerTeam.characters, ...this.enemyTeam.characters]
+      .map((character) => new PositionedCharacter(character, this.#positions.get(character)));
   }
 
   get positions() {
-    return this.allCharacters.map((item) => item.position);
+    return [...this.#positions.values()];
+  }
+
+  getPosition(character) {
+    return this.#positions.get(character);
+  }
+
+  setPosition(character, position) {
+    this.#positions.set(character, position);
   }
 
   removePosition(position) {
-    this.playerTeam = this.playerTeam.filter((item) => item.position !== position);
-    this.enemyTeam = this.enemyTeam.filter((item) => item.position !== position);
+    const character = this.findPCByPosition(position);
+    if (!character) return false;
+    this.#positions.delete(character);
+    const team = [this.playerTeam, this.enemyTeam].find((_team) => _team.has(character));
+    team.remove(character);
+    return true;
   }
 
-  static getCharacterState(positionedCharacter) {
-    const { type, level, health } = positionedCharacter.character;
-    return {
-      type,
-      level,
-      health,
-      position: positionedCharacter.position,
-    };
+  findPCByPosition(index) {
+    for (const [character, position] of this.#positions) {
+      if (position === index) {
+        return character;
+      }
+    }
+    return null;
+  }
+
+  getTeamState(team) {
+    return team.characters.map((character) => {
+      const { type, level, health } = character;
+      const position = this.getPosition(character);
+      return {
+        type, level, health, position,
+      };
+    });
+  }
+
+  setTeamState(team, data) {
+    if (team.size > 0) {
+      throw new Error('Can not set state of not empty team');
+    }
+    for (const item of data) {
+      const character = new charactersMap[item.type](item.level);
+      character.health = item.health;
+      team.add(character);
+      this.#positions.set(character, item.position);
+    }
   }
 
   get json() {
     return {
       score: this.#score,
       level: this.level,
+      isGameOver: this.isGameOver,
       isPlayerMove: this.isPlayerMove,
-      playerTeam: this.playerTeam.map(GameState.getCharacterState),
-      enemyTeam: this.enemyTeam.map(GameState.getCharacterState),
+      playerTeam: this.getTeamState(this.playerTeam),
+      enemyTeam: this.getTeamState(this.enemyTeam),
     };
   }
 
@@ -69,6 +111,7 @@ export default class GameState {
     const state = new GameState();
     state.#score = 'score' in object ? object.score : 0;
     state.level = 'level' in object ? object.level : 0;
+    state.isGameOver = !!object.isGameOver;
     if (
       !('playerTeam' in object)
       || !('enemyTeam' in object)
@@ -79,13 +122,8 @@ export default class GameState {
     ) {
       throw new Error('Invalid state');
     }
-    const parse = (data) => {
-      const character = new charactersMap[data.type](data.level);
-      character.health = data.health;
-      return new PositionedCharacter(character, data.position);
-    };
-    state.playerTeam = object.playerTeam.map(parse);
-    state.enemyTeam = object.enemyTeam.map(parse);
+    state.setTeamState(state.playerTeam, object.playerTeam);
+    state.setTeamState(state.enemyTeam, object.enemyTeam);
     return state;
   }
 }

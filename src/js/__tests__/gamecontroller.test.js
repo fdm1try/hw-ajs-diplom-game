@@ -2,6 +2,11 @@ import GamePlay from '../GamePlay';
 import GameController from '../GameController';
 import GameStateService from '../GameStateService';
 import Character from '../Character';
+import Team from '../Team';
+
+global.console = {
+  error: jest.fn(),
+};
 
 const mockShowCellTooltip = jest.spyOn(GamePlay.prototype, 'showCellTooltip');
 const mockShowDamage = jest.spyOn(GamePlay.prototype, 'showDamage');
@@ -17,6 +22,7 @@ const savedStateSample = {
   score: 140,
   level: 1,
   isPlayerMove: true,
+  isGameOver: false,
   playerTeam: [{
     type: 'swordsman',
     level: 2,
@@ -101,7 +107,7 @@ afterAll(() => {
 });
 
 test('The character\'s characteristics are displayed correctly when you hover the cursor over it', async () => {
-  const entity = gameCtrl.gameState.allCharacters[0];
+  const [entity] = gameCtrl.gameState.getAllPositionedCharacters();
   dispatchEventOnCell(entity.position, 'mouseenter');
   const {
     defence, attack, health, level,
@@ -112,43 +118,44 @@ test('The character\'s characteristics are displayed correctly when you hover th
 });
 
 test('The character\'s movement will not happen if the cell is out of his movement zone', async () => {
-  const entity = gameCtrl.gameState.playerTeam[0];
-  const previousPosition = entity.position;
-  const cell = entity.moveDistance + 1 + entity.position;
-  const result = gameCtrl.move(entity, cell);
+  const character = gameCtrl.gameState.playerTeam.characters[0];
+  const position = gameCtrl.gameState.getPosition(character);
+  const cell = character.moveDistance + 1 + position;
+  const result = gameCtrl.move(character, cell);
+  const newPosition = gameCtrl.gameState.getPosition(character);
   expect(result).toBe(false);
-  expect(entity.position).toBe(previousPosition);
+  expect(newPosition).toBe(position);
 });
 
 test('The movement of the character will occur if the cell is in the zone of his movement', async () => {
-  const entity = gameCtrl.gameState.playerTeam[0];
-  const cell = entity.moveDistance + entity.position;
-  const result = gameCtrl.move(entity, cell);
+  const character = gameCtrl.gameState.playerTeam.characters[0];
+  const position = gameCtrl.gameState.getPosition(character);
+  const cell = character.moveDistance + position;
+  const result = gameCtrl.move(character, cell);
+  const newPosition = gameCtrl.gameState.getPosition(character);
   expect(result).toBe(true);
-  expect(entity.position).toBe(cell);
+  expect(newPosition).toBe(cell);
 });
 
 test('The attack will not occur if the target is out of the affected area, an error will be thrown', async () => {
-  const attacker = gameCtrl.gameState.playerTeam[0];
-  const target = gameCtrl.gameState.enemyTeam[0];
+  const attacker = gameCtrl.gameState.playerTeam.characters[0];
+  const target = gameCtrl.gameState.enemyTeam.characters[0];
   expect(gameCtrl.attack(attacker, target)).rejects.toThrow();
 });
 
-test('Both attacker and target must be PositionedCharacter during the attack, an error will be thrown', async () => {
-  const attacker = gameCtrl.gameState.playerTeam[0];
-  const target = gameCtrl.gameState.enemyTeam[0];
-  const range = attacker.attackDistance;
-  target.position = attacker.position + range;
-  expect(gameCtrl.attack(attacker, target.character)).rejects.toThrow();
+test('Both attacker and target must be Character during the attack, an error will be thrown', async () => {
+  const attacker = gameCtrl.gameState.playerTeam.characters[0];
+  const result = gameCtrl.attack(attacker, {});
+  expect(result).rejects.toThrow();
 });
 
 test('The attack occurs when the target is in the affected area, a damage animation appears', async () => {
-  const attacker = gameCtrl.gameState.playerTeam[0];
-  const target = gameCtrl.gameState.enemyTeam[0];
-  const range = attacker.attackDistance;
-  target.position = attacker.position + range;
-  const promise = gameCtrl.attack(attacker, target);
-  expect(promise).resolves.not.toThrow();
+  const attacker = gameCtrl.gameState.playerTeam.characters[0];
+  const attackerPosition = gameCtrl.gameState.getPosition(attacker);
+  const target = gameCtrl.gameState.enemyTeam.characters[0];
+  gameCtrl.gameState.setPosition(target, attackerPosition + attacker.attackDistance);
+  const result = gameCtrl.attack(attacker, target);
+  expect(result).resolves.not.toThrow();
   expect(mockShowDamage).toHaveBeenCalled();
   expect(mockRegisterAction).toHaveBeenCalled();
 });
@@ -177,13 +184,18 @@ test('The loading of the game state is successful, a notification appears', () =
 });
 
 test('If there is a player in the enemy team\'s defeat zone, the enemy team\'s turn ends with an attack', () => {
-  const player = gameCtrl.gameState.playerTeam[0];
-  gameCtrl.gameState.playerTeam = gameCtrl.gameState.playerTeam.filter((item) => item !== player);
-  player.character.health = 1;
-  const enemy = gameCtrl.gameState.enemyTeam[0];
-  player.position = enemy.position - 1;
-  const promise = gameCtrl.makeEnemyMove();
-  expect(promise).resolves.not.toThrow();
+  const player = gameCtrl.gameState.playerTeam.characters[0];
+  for (const character of gameCtrl.gameState.playerTeam.characters) {
+    if (character !== player) {
+      gameCtrl.gameState.playerTeam.remove(character);
+    }
+  }
+  player.health = 1;
+  const enemy = gameCtrl.gameState.enemyTeam.characters[0];
+  const enemyPosition = gameCtrl.gameState.getPosition(enemy);
+  gameCtrl.gameState.setPosition(player, enemyPosition - 1);
+  const result = gameCtrl.makeEnemyMove();
+  expect(result).resolves.not.toThrow();
   expect(mockAttack).toHaveBeenCalled();
   expect(mockRegisterAction).toHaveBeenCalled();
 });
@@ -195,17 +207,20 @@ test('After starting a new game, all the characters on the playing field are cre
 });
 
 test('If there are no characters left in the player\'s team, the game will be over after calling registerAction', () => {
-  gameCtrl.gameState.playerTeam = [];
+  gameCtrl.gameState.playerTeam = new Team();
   gameCtrl.registerAction();
-  expect(gameCtrl.isGameOver).toBeTruthy();
+  expect(gameCtrl.gameState.isGameOver).toBeTruthy();
 });
 
 test('After completing the level of the game, the level of the remaining characters increases and the next level starts', () => {
   const prevCallsCount = mockCharacterLevelUp.mock.calls.length;
   const prevLevel = gameCtrl.gameState.level;
   gameCtrl.nextLevel();
-  const callsCount = gameCtrl.gameState.playerTeam.length
-    + gameCtrl.gameState.enemyTeam.reduce((sum, enemy) => enemy.character.level - 1 + sum, 0);
+  const callsCount = gameCtrl.gameState.playerTeam.size
+    + gameCtrl.gameState.enemyTeam.characters.reduce(
+      (sum, enemy) => enemy.level - 1 + sum,
+      0,
+    );
   expect(gameCtrl.gameState.level).toBe(prevLevel + 1);
   expect(mockCharacterLevelUp).toHaveBeenCalledTimes(prevCallsCount + callsCount);
 });
@@ -213,83 +228,94 @@ test('After completing the level of the game, the level of the remaining charact
 test('After completing the last level of the game, the game is over', () => {
   gameCtrl.gameState.level = 3;
   gameCtrl.nextLevel();
-  expect(gameCtrl.isGameOver).toBeTruthy();
+  expect(gameCtrl.gameState.isGameOver).toBeTruthy();
 });
 
 test('When a level starts and there are no characters in one of the teams, the game ends', () => {
-  gameCtrl.runLevel([], gameCtrl.gameState.enemyTeam);
-  expect(gameCtrl.isGameOver).toBeTruthy();
+  gameCtrl.gameState.playerTeam = new Team();
+  gameCtrl.runLevel(1);
+  expect(gameCtrl.gameState.isGameOver).toBeTruthy();
 });
 
 test('When trying to select an enemy team character, an error appears', () => {
-  const enemy = gameCtrl.gameState.enemyTeam[0];
-  dispatchEventOnCell(enemy.position, 'click');
+  const [enemy] = gameCtrl.gameState.enemyTeam.characters;
+  const position = gameCtrl.gameState.getPosition(enemy);
+  dispatchEventOnCell(position, 'click');
   expect(mockShowError).toHaveBeenCalledWith('Нельзя выбрать персонажа вражеской команды');
 });
 
 test('When you try to select a character of your team, his position is saved in the controller', () => {
-  const player = gameCtrl.gameState.playerTeam[0];
-  dispatchEventOnCell(player.position, 'click');
-  expect(gameCtrl.selectedCell).toEqual(player);
+  const [player] = gameCtrl.gameState.playerTeam.characters;
+  const position = gameCtrl.gameState.getPosition(player);
+  dispatchEventOnCell(position, 'click');
+  expect(gameCtrl.gameState.selectedCharacter).toEqual(player);
 });
 
 test(
   'When trying to select a character of your team when another character has already been selected, the selection is removed and the selection is fixed on the selected character',
   () => {
-    const [first, second] = gameCtrl.gameState.playerTeam;
-    dispatchEventOnCell(first.position, 'click');
-    dispatchEventOnCell(second.position, 'click');
-    expect(mockDeselectCell).toHaveBeenCalledWith(first.position);
-    expect(gameCtrl.selectedCell).toEqual(second);
+    const [first, second] = gameCtrl.gameState.playerTeam.characters;
+    const firstPosition = gameCtrl.gameState.getPosition(first);
+    const secondPosition = gameCtrl.gameState.getPosition(second);
+    dispatchEventOnCell(firstPosition, 'click');
+    dispatchEventOnCell(secondPosition, 'click');
+    expect(mockDeselectCell).toHaveBeenCalledWith(firstPosition);
+    expect(gameCtrl.gameState.selectedCharacter).toEqual(second);
   },
 );
 
 test('When trying to select an empty cell when a character is already selected and movement is impossible, the selection is removed', () => {
-  const player = gameCtrl.gameState.playerTeam[0];
-  dispatchEventOnCell(player.position, 'click');
-  dispatchEventOnCell(player.position + 5, 'click');
-  expect(mockDeselectCell).toHaveBeenCalledWith(player.position);
-  expect(gameCtrl.selectedCell).toBeUndefined();
+  const player = gameCtrl.gameState.playerTeam.characters[0];
+  const position = gameCtrl.gameState.getPosition(player);
+  dispatchEventOnCell(position, 'click');
+  dispatchEventOnCell(position + 5, 'click');
+  expect(mockDeselectCell).toHaveBeenCalledWith(position);
+  expect(gameCtrl.gameState.selectedCharacter).toBeNull();
 });
 
 test(
   'When trying to select an empty cell, when a character is already selected and movement is possible, the character moves to this cell',
   () => {
-    const player = gameCtrl.gameState.playerTeam[0];
-    const newPosition = player.position + 1;
-    dispatchEventOnCell(player.position, 'click');
+    const player = gameCtrl.gameState.playerTeam.characters[0];
+    const position = gameCtrl.gameState.getPosition(player);
+    const newPosition = position + 1;
+    dispatchEventOnCell(position, 'click');
     dispatchEventOnCell(newPosition, 'click');
-    expect(mockDeselectCell).toHaveBeenCalledWith(player.position);
+    expect(mockDeselectCell).toHaveBeenCalledWith(position);
     expect(mockSelectCell).toHaveBeenCalledWith(newPosition);
-    expect(player.position).toBe(newPosition);
+    const result = gameCtrl.gameState.getPosition(player);
+    expect(result).toBe(newPosition);
   },
 );
 
 test('If a character is selected and a click occurs on the cell of an enemy character, an attack on an enemy occurs', () => {
-  const player = gameCtrl.gameState.playerTeam[0];
-  const enemy = gameCtrl.gameState.enemyTeam[0];
-  const healthBefore = enemy.character.health;
-  enemy.position = player.position + 1;
-  dispatchEventOnCell(player.position, 'click');
-  dispatchEventOnCell(enemy.position, 'click');
-  expect(enemy.character.health).toBeLessThan(healthBefore);
+  const player = gameCtrl.gameState.playerTeam.characters[0];
+  const playerPosition = gameCtrl.gameState.getPosition(player);
+  const enemy = gameCtrl.gameState.enemyTeam.characters[0];
+  const healthBefore = enemy.health;
+  gameCtrl.gameState.setPosition(enemy, playerPosition + 1);
+  dispatchEventOnCell(playerPosition, 'click');
+  dispatchEventOnCell(playerPosition + 1, 'click');
+  expect(enemy.health).toBeLessThan(healthBefore);
 });
 
 test('If a character is selected and the cursor is hovered over a cell of an enemy character, the cell is highlighted in red', () => {
-  const player = gameCtrl.gameState.playerTeam[0];
-  const enemy = gameCtrl.gameState.enemyTeam[0];
-  player.position = enemy.position - 1;
-  dispatchEventOnCell(player.position, 'click');
-  dispatchEventOnCell(enemy.position, 'mouseenter');
-  expect(mockSelectCell).toHaveBeenCalledWith(enemy.position, 'red');
+  const [player] = gameCtrl.gameState.playerTeam.characters;
+  const [enemy] = gameCtrl.gameState.enemyTeam.characters;
+  const enemyPosition = gameCtrl.gameState.getPosition(enemy);
+  gameCtrl.gameState.setPosition(player, enemyPosition - 1);
+  dispatchEventOnCell(enemyPosition - 1, 'click');
+  dispatchEventOnCell(enemyPosition, 'mouseenter');
+  expect(mockSelectCell).toHaveBeenCalledWith(enemyPosition, 'red');
 });
 
 test(
   'If a character is selected and the cursor is hovered over an empty cell in the character\'s movement area, the cell is highlighted in yellow',
   () => {
-    const player = gameCtrl.gameState.playerTeam[0];
-    dispatchEventOnCell(player.position, 'click');
-    dispatchEventOnCell(player.position + 1, 'mouseenter');
-    expect(mockSelectCell).toHaveBeenCalledWith(player.position + 1, 'green');
+    const player = gameCtrl.gameState.playerTeam.characters[0];
+    const playerPosition = gameCtrl.gameState.getPosition(player);
+    dispatchEventOnCell(playerPosition, 'click');
+    dispatchEventOnCell(playerPosition + 1, 'mouseenter');
+    expect(mockSelectCell).toHaveBeenCalledWith(playerPosition + 1, 'green');
   },
 );
